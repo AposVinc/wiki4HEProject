@@ -1,0 +1,23 @@
+-) dataset
+
+1) sez 3.1.1
+2) jupiter -> Data process.... (ho tradotto buona parte - è il piu completo ma pulisce solo sottoinsieme di colonne)
+3) jupiter -> EDA
+4) scritto in R -> interessante solo quando parla di MCAR, MAR, MNAR -> spiega perche le domande mal poste
+5) niente di che ma analizzava stesso dataset
+6) sez Data Preparation -> idea "Create new 'Position' Field" -> stessa sez spunti interessanti
+
+
+idea di pulizia e analisi mia grazie a 1, 4 e 6
+
+
+-) https://archive.ics.uci.edu/ml/datasets/wiki4HE
+
+1) https://www.kaggle.com/mrshih/higher-educ-perceptions-of-wikipedia-wiki4he
+2) https://gist.github.com/pb111/1fa3a8368b173f87e98b28a0b4a5544d?short_path=bb33438
+3) https://github.com/Krids/Revealing-wiki4HE-Data
+4) http://moazum.com/assets/projects/University_Faculty_Perceptions_on_Wikipedia_Use_6.html
+5) https://wiki.smu.edu.sg/1617t1ISSS608g1/ISSS608_2016-17_T1_Assign2_Arcchit_Mittal#Data_Preparation
+6) https://wiki.smu.edu.sg/1617t1ISSS608g1/ISSS608_2016-17_T1_Assign2_PRASONGTHANAKIT_Kanokkorn
+
+

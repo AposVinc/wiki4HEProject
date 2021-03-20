@@ -1,0 +1,611 @@
+#%% md
+
+# MWT - Data Science - wiki4HE
+
+Il set di dati __wiki4HE__ contiene informazioni su un questionario proposto a dei professori universitari, ai quali è stato chiesto di rispondere a delle domande sull'utilizzo di Wikipedia come risorsa didattica.
+
+Il dataset è composto da due sottoinsiemi contenenti i dati demografici degli intervistati e le relative risposte alle domande poste loro.
+I professori, che si sono sottoposti al sondaggio, appartengono a due diverse università spagnole, ovvero la _Universitat Oberta de Catalunya_ e la _Universitat Pompeu Fabra_, e sono specializzati in diversi ambiti accademici.
+La scala dei valori delle risposte all'indagine variano da 1 a 5, dove 1 corrisponde a “totale disaccordo” mentre 5 corrisponde a “totalmente d'accordo"
+
+Il lavoro su questo dataset si suddividerà in steps nei quali si analizzeranno i dati, in seguito questi verranno combinati così da incrementare le informazioni a disposizione per l'addestramento ed infine, verrà eseguita una gestione degli eventuali dati mancanti.
+Ci si soffermerà anche sul confronto fra le funzioni ottimizzate delle librerie importate ed altre funzioni che vanno a simulare le prime. Quest'ultime sono scritte in Python e sfruttano il linguaggio e i suoi costrutti.
+
+Lo scopo ultimo di questo elaborato è quello di utilizzare questo dataset per l'addestramento di una macchina capace di predirre le risposte sull'utilizzo di Wikipedia come stumento per l'integrazione del materiale didattico da parte degli studenti, questo sarà possibile analizzando le caratteristiche dei professori e delle risposte date da ognuno di essi.
+Nel dataset sono presenti domande specifiche che danno una risposta all'obiettivo della predizione, quindi verranno escluse dal set di dati utilizato per l'addestramento.
+
+#%% md
+
+## Indice:
+2. Import del Dataset e analisi preliminari
+3. Manipolazione e pulizia (Data Wrangling)
+    1. Valutazione dei NaN
+    2. Divisione del set
+        1. Professori
+        2. Questionario
+4. Preparazione Modello ML
+
+
+#%% md
+
+
+# Import del Dataset e analisi preliminari
+Dopo aver importato il dataset, è stato sostituito il carattere "?" che rappresenta una risposta mancante con il valore NaN di numpy.
+
+Viene eseguita una stampa dei primi campioni per ottenere una visione generica del dataset che si sta analizzando e in seguito vengono stampate le informazioni generali relative alla dimensione e ai tipi di ogni attributo del set di dati.
+
+#%%
+
+import numpy as np
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import main
+
+data = pd.read_csv('dataset/uci - missing data/wiki4HE/wiki4HE.csv', sep=';')
+pd.set_option('display.max_columns', 54)
+data.replace('?', np.nan, inplace=True)
+#stampa delle prime righe
+print(data.head())
+
+#%%
+
+#info
+data.info()
+
+#%% md
+
+
+# Manipolazione e pulizia (Data Wrangling)
+
+##  Valutazione dei NaN
+
+Ai fini dell'organizzazione del lavoro di pulizia, risulta interessante capire quanti e dove sono presenti i valori Nan.
+Si puo notare che la maggior parte delle istanze ha almeno un valore NaN, per questo motivo risulta utile visionare il conteggio degli NaN per ogni attributo
+
+
+#%%
+
+# numero di righe con almeno un na:
+data.shape[0] - data.dropna().shape[0]
+
+#%%
+
+#numero di na per ogni attributo
+pd.DataFrame({ 'contain na ': data.isna().any() ,'number of na ': data.isna().sum() })
+
+#%% md
+
+## Divisione del set
+
+Data la struttura del dataset, è possibile lavorare separando i dati demografici dei professori dalle domande del questionario. Per questo motivo dividiamo il set in due sottoinsiemi che chiameremo ___"Prof"___ e ___"Questionario"___
+
+#%%
+
+prof = data.iloc[:, :10]
+questionario = data.iloc[:, 10:]
+
+#%% md
+
+### Professori
+
+Questo sottoinsieme raccoglie varie informazioni relative ai professori:
+
+ - Età
+ - Genere
+ - Dominio
+ - Anni di esperienza da professore
+ - In possesso di PhD
+ - Università di appartenenza
+ - Posizione lavorativa ricoperta in UOC
+ - Se insegna in altri Istituiti Universitari
+ - Posizione lavorativa presso altre Università e dipendente di UPF
+ - Utente registrato su Wikipedia
+
+Per avere una visione più puntuale del sottoinsieme si utilizza la costruzione di plot descrittivi.
+
+#%% md
+
+#### Grafici
+
+#%%
+
+# GENDER #AGE YEARSEXP
+
+fig = plt.figure(figsize = (16,10))
+
+ax = fig.add_subplot(2, 3, 1)
+counts, bins, patches = ax.hist(prof['GENDER'].map({0: 'Uomo', 1: 'Donna'}), bins = 3)
+ax.set_title("Genere", fontsize = 14)
+ax.set_ylabel("Quantità")
+ax.set_ylim((0, 1000))
+
+ax = fig.add_subplot(2, 3, 2)
+ax.hist(prof['AGE'].fillna(80).astype(int), bins = 20)
+ax.set_title("Età", fontsize = 14)
+ax.set_ylim((0, 150))
+ax.set_xticks([30, 40, 50, 60, 70, 80])
+ax.set_xticklabels([30, 40, 50, 60, 70, "NaN"])
+
+ax = fig.add_subplot(2, 3, 3)
+ax.hist(prof['YEARSEXP'].fillna(60).astype(int), bins = 20)
+ax.set_title("Anni esperienza", fontsize = 14)
+ax.set_ylim((0, 200))
+ax.set_xticks([0, 10, 20, 30, 40, 50, 60])
+ax.set_xticklabels([0, 10, 20, 30, 40, 50, "NaN"])
+
+#%%
+
+fig = plt.figure(figsize = (16,10))
+
+ax = fig.add_subplot(2, 3, 1)
+counts, bins, patches = ax.hist(prof['PhD'].map({0: 'No', 1: 'Si'}), bins = 3)
+ax.set_title("Hanno PhD?", fontsize = 14)
+ax.set_ylabel("Quanti professori?")
+ax.set_ylim((0, 1000))
+ax.set_yticks([0, 250, 500, 750, 1000])
+ax.set_yticklabels([0, 250, 500, 750, ">1000"])
+
+ax = fig.add_subplot(2, 3, 2)
+ax.hist(prof['UNIVERSITY'].fillna(0).astype(int).map({0:'NaN', 1: 'UOC', 2: 'UPF'}), bins = 10)
+ax.set_title("Università di appartenenza", fontsize = 14)
+ax.set_ylim((0, 1000))
+ax.set_yticks([0, 250, 500, 750, 1000])
+ax.set_yticklabels([ "",  "",  "",  "", ""])
+
+ax = fig.add_subplot(2, 3, 3)
+ax.hist(prof['USERWIKI'].fillna(2).astype(int).map({0: 'No', 1: 'Si', 2:'NaN'}), bins = 10)
+ax.set_title("Utente di Wikipedia", fontsize = 14)
+ax.set_ylim((0, 1000))
+ax.set_yticks([0, 250, 500, 750, 1000])
+ax.set_yticklabels([ "",  "",  "",  "", ""])
+
+ax = fig.add_subplot(2, 1, 2)
+ax.hist(prof['DOMAIN'].fillna(7).astype(int).map({1: "Arts & Humanities", 2:"Sciences", 3:"Health Sciences",
+                                   4:"Engineering & Architecture", 5:"Law & Politics",
+                                   6:"Social Science", 7:'NaN'}), bins = 20)
+ax.set_title("Dominio Didattico", fontsize = 14)
+ax.set_ylim((0, 400))
+ax.set_yticks([0, 100, 200, 300, 400])
+ax.set_yticklabels([0, 100, 200, 300, ">400"])
+
+#%%
+
+fig = plt.figure(figsize = (16,10))
+
+ax = fig.add_subplot(2, 1, 1)
+ax.hist(prof['UOC_POSITION'].fillna(7).astype(int).map({1: "Professor", 2: "Associate", 3: "Assistant", 4: "Lecturer", 5: "Instructor", 6: "Adjunct", 7:'NaN'}), bins = 13)
+ax.set_title("Impiego UOC", fontsize = 14)
+ax.set_ylim((0, 800))
+
+ax = fig.add_subplot(2, 1, 2)
+ax.hist(prof['OTHERSTATUS'].fillna(7).astype(int).map({1: "Professor", 2: "Associate", 3: "Assistant", 4: "Lecturer", 5: "Instructor", 6: "Adjunct", 7:'NaN'}), bins = 13)
+ax.set_title("impiego UPF", fontsize = 14)
+ax.set_ylim((0, 800))
+
+#%% md
+
+#### Pulizia degli attributi e cambio dtype
+
+
+I valori nulli relativi agli anni di esperienza possono essere interpretati come l'assenza di questi ultimi.
+
+I valori nulli relativi al dominio e alla registrazione sono solo 5 e possono essere eliminatiperchè, avendo un dataset da 913 campioni, l'eliminazione di questi 5 non alterano la natura del set.
+
+#%%
+
+# se non specificato considero gli anni di esperienza = 0
+prof['YEARSEXP'] = prof['YEARSEXP'].fillna(0)
+
+# eliminazione righe con domain e userwiki na
+prof = prof[prof['DOMAIN'].notna() & prof['USERWIKI'].notna()]
+
+# cambio dei tipi
+prof = prof.astype({'AGE': 'int8','GENDER': 'int8','DOMAIN': 'int8','PhD': 'bool','YEARSEXP': 'int8','UNIVERSITY': 'int8','USERWIKI': 'bool'})
+
+#quanti campioni rimanenti
+prof.shape
+
+#%% md
+
+#### Incongruenze nel dataset
+
+Gli attributi "OTHER", "OTHER_POSITION" della descrizione non corrispondono a quelli presenti nel DataFrames:
+ - __"OTHER"__ - non è presente;
+ - __"OTHER_POSITION"__ - non rispecchia i valori attesi.
+
+L'attributo "OTHER_POSITION" del dataset presenta solo due valori, ___1___ e ___2___, questi risultano essere associabili all' attributo "OTHER" nella descrizione.
+
+#%%
+
+prof['OTHER_POSITION'].dropna().astype(int).describe()
+
+#%% md
+
+Nel dataset è presente un'altra colonna che non viene descritta sul sito, ovvero "OTHERSTATUS".
+I dati di quest'ultima vanno da un minimo di ___1___ a un massimo di ___7___ e risultano essere associabili ai valori attesi dall'attibuto "OTHER_POSITION" del sito, ad esclusione del valore 7.
+
+#%%
+
+prof['OTHERSTATUS'].dropna().astype(int).describe()
+
+#%% md
+
+#### Assunzioni
+
+Assumiamo come veritiere le supposizioni precedenti e associamo i vari attributi alle colonne nel dataset:
+- "OTHER" (sito) -> "OTHER_POSITION" (dataset)
+- "OTHER_POSITION" (sito) -> "OTHERSTATUS" (dataset)
+
+Il valore ___7___ presente nell'attributo "OTHERSTATUS" verrà interpretato come "Altro" e perciò specificherà una posizione lavorativa non in elenco.
+
+#%%
+
+prof['OTHERSTATUS'].dropna().astype(int)[prof['OTHERSTATUS'].dropna().astype(int)[:] == 7].count()
+
+#%% md
+
+L'attributo "OTHER_POSITION" inoltre ha maggior parte dei dati mancanti, infatti questa variabile descrive il "lavoro come part-time in un'altra università e membri UPF".
+Possiamo affermare che questa domanda è mal progettata in quanto non è applicabile alla maggior parte dei membri della facoltà e che quindi non hanno risposto.
+
+#%%
+
+# quanti prof non sono assunti da UOC
+prof[prof['UNIVERSITY'] == 2].shape
+
+#%%
+
+#tutti i professori non associati a UPF non hanno un ruolo in "UOC_POSITION", il ruolo ricoperto è descritto in "OTHERSTATUS"
+pd.DataFrame({ 'contain na ': prof[prof['UNIVERSITY'] == 2].isna().any() ,'number of na ': prof[prof['UNIVERSITY'] == 2].isna().sum() })
+
+#%% md
+
+A conferma di quanto affermato poco sopra, analizzando l'attributo "OTHER_POSITION" si può notare come nel dataset alcuni professori di UOC hanno un altro impiego presso altre facoltà, mentre nessuno dei professori UPF ne ha
+
+#%%
+
+other_pos = prof[(prof["OTHER_POSITION"].notna())].fillna(0).astype(int)
+
+#prof di UOC con un altro impiego presso un'altra università
+other_pos.loc[(other_pos['OTHER_POSITION'] == 1) & (other_pos['UNIVERSITY'] == 1)]["OTHERSTATUS"].count()
+
+#%%
+
+#prof di UPF con un altro impiego presso un'altra università
+other_pos.loc[(other_pos['OTHER_POSITION'] == 1) & (other_pos['UNIVERSITY'] == 2)]["OTHERSTATUS"].count()
+
+
+#%% md
+
+#### Valutazione NaN su "UOC_POSITION", "OTHERSTATUS", "OTHER_POSITION"
+
+Un'altra osservazione che possiamo eseguire su questi attributi l'analisi sugli NaN.
+
+#%%
+
+pd.DataFrame({ 'contain na ': prof[["UOC_POSITION", "OTHERSTATUS", "OTHER_POSITION"]].isna().any() ,'number of na ': prof[["UOC_POSITION", "OTHERSTATUS", 'OTHER_POSITION']].isna().sum() })
+
+#%% md
+
+Queste tre informazioni presentano un elevato numero di NaN, per questo motivo l'operazione di `fillna()` è estremamente sconsigliata. Questa altererebbe la natura dei dati, andando a creare valutazioni errate nelle fasi successive dello studio e per questo motivo l'unica soluzione percorribile è quella dell' dell'eliminazione netta.
+
+#%% md
+
+#### Costruzione attributo POSITION
+
+Prima di eliminare dal dataset le colonne citate poco sopra, è possibile recuperare una parte di informazione grazie alla combinazione delle tre colonne.
+
+L' attributo "UNIVERSITY" indica l'università di appartenenza, a seconda dei valori infatti:
+- se 1 -> il prof. ha un ruolo in UOC
+- se 2 -> il prof. o ha un ruolo un ruolo in UPF o in un'altra università
+
+Dagli studi e dalle analisi precedenti abbiamo osservato come le informazioni sulla posizione lavorativa di un professore sia enunciata negli attributi "UOC_POSITION" e "OTHERSTATUS" per i dipendenti di UOC e solo nell'attributo "OTHERSTATUS" per i dipendenti UPF.
+
+Sfruttando questa conoscenza è possibile ottenere un nuovo attributo "POSITION" che descriverà la posizione di maggior rilievo ricoperta dal professore combinando le informazioni presenti nelle varie colonne.
+
+#%%
+
+prof['UOC_POSITION'] = prof['UOC_POSITION'].fillna(0).astype(int)
+prof['OTHERSTATUS'] = prof['OTHERSTATUS'].fillna(0).astype(int)
+prof['OTHER_POSITION'] = prof['OTHER_POSITION'].fillna(0).astype(int)
+
+# sostituzione del val "Altro" con 0 per sfruttare la UFunc max()
+prof['OTHERSTATUS'][ prof['OTHERSTATUS'] > 6] = 0 # considero il 7 come "altro" percio non lo considero
+
+#%% md
+
+##### Confronto fra UFunc e Funzioni semplici
+
+Come si puo vedere di seguito, il confronto conferma quanto ci aspettavamo. Le funzioni ottimizzate risultano essere molto più veloci rispetto alla funzione scritta con il linguaggio ad alto livello.
+l'UFunc risulta essere piu velore del
+
+#%%
+
+%timeit prof[["UOC_POSITION", "OTHERSTATUS"]].max(axis=1)
+
+#%% md
+
+`def merge_two_series_by_max(col1, col2):
+    col = []
+    for i in range(col1.size):
+        if col1[i] >= col2[i]:
+            col.append(col1[i])
+        else:
+            col.append(col2[i])
+    return col`
+
+#%%
+
+%timeit main.merge_two_series_by_max(prof['OTHERSTATUS'].array, prof['UOC_POSITION'].array)
+
+#%% md
+
+La funzione `merge_two_series_by_max(col1, col2)` ha un esecuzione media di 1.61 ms mentre l'ottimizzata 592µs, l'ultima risulta percio essere circa 3 volte pu veloce
+Grazie a questo confronto tra funzioni, decidiamo di utlizzare la UFunc dato che questa risulta essere piu efficiente.
+
+Una volta ottenuta la Series contenente la posizione lavorativa più importante ricoperta da ogni professore, la inseriamo nel dataset ed eliminiamo i 3 attributi utilizzati per costruirla poichè questi presentano un gran numero di NaN.
+
+#%%
+
+position = prof[["UOC_POSITION", "OTHERSTATUS"]].max(axis=1).astype('int8')
+
+#inseriamo in ordine la nuova colonna ed eliminiamo 3 colonne
+prof.insert(loc=6, column='POSITION', value=position)
+prof = prof.drop(columns=['UOC_POSITION', 'OTHERSTATUS', 'OTHER_POSITION'])
+
+# professori che non hanno neanche un ruolo vengono eliminati
+prof = prof[prof['POSITION'] != 0]
+prof.info()
+
+
+#%% md
+
+Controllando di nuovo il DataFrame "prof" e i suoi valori NaN possiamo affermare di aver eseguito una pulizia completa del dataset perdendo poche informazioni.
+
+#%%
+
+# mostra na di prof dopo manuipolazioni
+pd.DataFrame({ 'contain na ': prof.isna().any() ,'number of na ': prof.isna().sum() })
+
+#%% md
+
+------------------------------------------------
+
+#%% md
+
+### Questionario
+
+Questo sottoinsieme raccoglie risposte al sondaggio rilasciate da ogni professore.
+Ogni risposta puo avere un solo valore da 1 a 5, dove __1__: rappresenta "fortemente in disaccordo / mai" e __5__: "fortemente d'accordo / sempre"
+
+Argomento | Nome attributo | Desc
+----|------|-------
+Utilità percepita | PU1 | L'uso di Wikipedia rende più facile per gli studenti sviluppare nuove competenze
+ - | PU2 | L'uso di Wikipedia migliora l'apprendimento degli studenti
+ - | PU3 | Wikipedia è utile per l'insegnamento
+Facilità d'uso percepita | PEU1| Wikipedia è facile da usare
+ - | PEU2 | È facile trovare in Wikipedia le informazioni che cerchi
+ - | PEU3 | È facile aggiungere o modificare informazioni in Wikipedia
+Piacere percepito | ENJ1| L'uso di Wikipedia stimola la curiosità
+ - | ENJ2 | L'uso di Wikipedia è divertente
+Qualità | QU1| Gli articoli di Wikipedia sono affidabili
+ - | QU2 | Gli articoli di Wikipedia sono aggiornati
+ - | QU3 | Gli articoli di Wikipedia sono completi
+ - | QU4 | Nella mia area di competenza, Wikipedia ha una qualità inferiore rispetto ad altre risorse educative
+ - | QU5 | Ho fiducia nel sistema di editing di Wikipedia
+Visibilità | VIS1| Wikipedia migliora la visibilità del lavoro degli studenti
+ - | VIS2 | È facile avere un registro dei contributi fatti in Wikipedia
+ - | VIS3 | Cito Wikipedia nei miei articoli accademici
+Immagine sociale | IM1| L'uso di Wikipedia è ben considerato dai colleghi
+ - | IM2 | Nel mondo accademico, la condivisione di risorse educative aperte è apprezzata
+ - | IM3 | I miei colleghi usano Wikipedia
+Atteggiamento di condivisione | SA1| È importante condividere i contenuti accademici in piattaforme aperte
+ - | SA2 | È importante pubblicare i risultati della ricerca in altri media che non siano riviste accademiche o libri
+ - | SA3 | È importante che gli studenti acquisiscano familiarità con gli ambienti collaborativi online
+Comportamento d'uso | USE1| Uso Wikipedia per sviluppare il mio materiale didattico
+ - | USE2 | Uso Wikipedia come piattaforma per sviluppare attività educative con gli studenti
+ - | USE3 | Raccomando ai miei studenti di usare Wikipedia
+ - | USE4 | Raccomando ai miei colleghi di usare Wikipedia
+ - | USE5 | Sono d'accordo che i miei studenti usino Wikipedia nei miei corsi
+Profilo 2.0 | PF1| Contribuisco ai blog
+ - | PF2 | Partecipo attivamente alle reti sociali
+ - | PF3 | Pubblico contenuti accademici in piattaforme aperte
+Rilevanza del lavoro | JR1| La mia università promuove l'uso di ambienti collaborativi aperti in Internet
+ - | JR2 | La mia università considera l'uso di ambienti collaborativi aperti in Internet come un merito dell'insegnamento
+Intenzione comportamentale | BI1| In futuro raccomanderò l'uso di Wikipedia ai miei colleghi e studenti
+ - | BI2 | In futuro userò Wikipedia nella mia attività di insegnamento
+Incentivi | INC1| Per progettare attività educative utilizzando Wikipedia, sarebbe utile: una guida alle migliori pratiche
+ - | INC2 | Per progettare attività educative utilizzando Wikipedia, sarebbe utile: ricevere istruzioni da un collega
+ - | INC3 | Per progettare attività educative utilizzando Wikipedia, sarebbe utile: ottenere una formazione specifica
+ - | INC4 | Sarebbe utile progettare attività educative usando Wikipedia: maggiore riconoscimento istituzionale
+Esperienza | EXP1| Consulto Wikipedia per questioni relative al mio campo di competenza
+ - | EXP2 | Consulto Wikipedia per altre questioni accademiche
+ - | EXP3 | Consulto Wikipedia per questioni personali
+ - | EXP4 | Contribuisco a Wikipedia (edizioni, revisioni, miglioramento degli articoli...)
+ - | EXP5 | Uso i wiki per lavorare con i miei studenti
+
+#%% md
+
+Prima di procedere con l'analisi del set di dati verranno eliminate i campioni dei professori non più presenti nel dataset grazie all'utilizzo degli Index
+
+#%%
+
+#escludo le domande relative ai professori non più presenti
+questionario = questionario.loc[prof.index]
+
+#stampa degli NaN per ogni attributo
+pd.DataFrame({ 'contain na ': questionario.isna().any() ,'number of na ': questionario.isna().sum() })
+
+#%% md
+
+#### Grafici
+
+Per avere una visione più puntale del sottoinsieme in lavorazione risulta essere vantaggioso la costruzione di plot descrittivi.
+
+#%%
+questionario.fillna(6).astype(int).hist(figsize=(18,10), bins=11);
+
+#%% md
+
+Come possiamo vedere dai grafici, la maggior parte delle domande ha una distribuzione quasi normale, con la maggior parte delle risposte concentrate tra 2, 3 e 4.
+Risultano essere presenti alcune domande sulle quali sono presenti molti valori rappresentati il disaccordo, è il caso Use1, Use2, Vis3 e Exp5.
+Queste domande, riferendosi all'uso di wikipedia per l'elaborazione di materiale e attività educative, risultano essere molto interessanti ai fini dello studio e forniscono un indicazione sull'opinione di una buona parte dei professori.
+
+#%% md
+
+#### Ricodifica QU4
+
+Analizzando le domande relative al questionario si è notato che la domanda QU4 ("Nella mia area di competenza, Wikipedia ha una qualità inferiore rispetto ad altre risorse educative") è posta in maniera non coerente rispetto alle altre.
+
+In questa specifica domanda una risposta con valore 5 esprime un giudizio negativo, per questo motivo eseguiremo una ricodifica delle risposte cosi da ottenere una maggiore linearità.
+
+#%% md
+
+##### Confronto fra UFunc e Funzioni semplici
+
+Per operare questo tipo di codifica era necessario operare su tutta la Series, questo ha permesso di confrontare i diversi approcci possibili.
+Nel primo caso si è utilizzata la funzione built-in `.map()` disponibile nella libreria Pandas, nel secondo la funzione utilizza UFuncs adatte alla manipolazione delle series mentre l'ultima consiste in un ciclo su tutta la Series dove per ogni elemento si applica una funzione lambda che simula la map() del primo test
+
+#%%
+
+#trasformo per facilitare il test
+questionario['Qu4'] = questionario['Qu4'].fillna(0).astype(int)
+
+
+#%%
+
+# funzione built|in
+%timeit questionario['Qu4'].map({1:5, 2:4, 3:3, 4:2, 5:1})
+
+#%% md
+
+`def reverse_vote_uf(s):
+
+    v1 = s.mask(s == 1, 5)
+    v2 = s.mask(s == 2, 4)
+    v3 = s.mask(s == 3, 3)
+    v4 = s.mask(s == 4, 2)
+    v5 = s.mask(s == 5, 1)
+
+    v3 = v3.combine(v1, max)
+    v3 = v3.combine(v2, max)
+    v3 = v3.combine(v4, max)
+    v3 = v3.combine(v5, max)
+
+    return v3`
+
+#%%
+
+# mask e combine
+%timeit main.reverse_vote_uf(questionario['Qu4'])
+
+#%% md
+
+`def switch(e):
+    switcher = {
+        0: 0,
+        1: 5,
+        2: 4,
+        3: 3,
+        4: 2,
+        5: 1
+    }
+    return switcher.get(e, lambda: "Invalid")
+
+
+def reverse_vote_not_uf(s):
+    list = []
+    for i in range(s.size):
+        list.append(switch(s[i]))
+    return list`
+
+#%%
+
+# foreach con funzione switcher che utilizza map
+%timeit main.reverse_vote_not_uf(questionario['Qu4'].array)
+
+#%% md
+
+Il risultato sorprende in parte, questo infatti conferma che la funzione `.map()` di pandas è la più veloce ed ottimizzata ma mostra come il secondo approccio sia meno efficiente rispetto all'ultimo.
+Questo risultato ci permette di fare riflessioni sulle `lambda` function, queste infatti risultano essere molto efficienti rispetto alle normali funzioni quasi quanto le `.map()`
+
+#%%
+
+questionario['Qu4'] = questionario['Qu4'].map({0:np.nan, 1:5, 2:4, 3:3, 4:2, 5:1})
+
+#%% md
+
+#### Pulizia degli attributi e cambio dtype
+
+Tutti gli attributi, come visto in precedenza, possiedono almeno un NaN. Stampare il numero dei campioni coinvolti con nessun NaN è utile a capire quanto questo fenomeno abbia peso sul dataset.
+
+#%%
+
+# lo mostro soltanto per vedere quante sono le righe complete
+questionario.dropna().shape
+
+#%% md
+
+Una semplice esclusione delle osservazioni (righe) con NaN nelle risposte del sondaggio rimuove circa 300 osservazioni. Questo è circa 1/3 del set di dati ed è una parte abbastanza significativa dei dati perciò si cercherà un altro approccio per ottenere un dataset completamente pulito.
+
+#%% md
+
+##### Diversi approcci per pulizia
+
+A seguito delle analisi sul dataset, le opzioni applicabili sono 3:
+
+- eliminare riga solo se ha n risposte mancanti, con n valore arbitrario
+- sostituire gli NaN con un valore specifico, ad esempio 0 o 6
+- sostituire gli NaN con la mediana
+
+La prima soluzione non risulta essere percorribile, ogni risposta alle domande può risultare importante ai fini dello studio. Ad esempio, eliminare una riga nel caso in cui il professore non abbia risposto ai quesiti "USE" quando questi sono quelli da predirre eliminerebbe campioni utili al dataset
+
+la seconda opzione risulterebbe interessante qualora il dataset non dovesse essere utilizzato per il ML, introdurre nuovi valori numerici che non hanno un reale riscontro con le domande effettuate porterebbe possibili comportamenti inattesi da parte degli algoritmi.
+
+La soluzione migliore risulta essere l'ultima anche se non risulterà possibile effettuare un'analisi sul motivo per cui i dati sono nulli.
+
+#%%
+
+fig, ax = plt.subplots(figsize=(25, 6))
+questionario.dropna().astype(int).boxplot(ax=ax)
+
+#%%
+
+# sfruttiamo le lamda function grazie alle osservazioni precedenti
+questionario = questionario.apply(lambda x: x.fillna(x.median()),axis=0)
+questionario = questionario.astype('int8')
+
+pd.DataFrame({ 'contain na ': questionario.isna().any() ,'number of na ': questionario.isna().sum() })
+
+#%%
+
+questionario.describe()
+
+#%% md
+
+# Preparazione modello ML
+
+#%%
+
+#riuniamo il dataset
+data = pd.concat([prof,questionario], axis=1)
+data
+
+#%%
+
+#normalizza colonne
+#one note encoding
+
+#%%
+
+
+
+
+
+
+
+
+
+
+
+#jupyter nbconvert --execute --to pdf wiki4HE.ipynb
